@@ -4,12 +4,17 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 // Validate API key on startup
-if (!process.env.GEMINI_API_KEY) {
-  console.error('❌ GEMINI_API_KEY is not set in environment variables');
-  console.error('Please add your API key to the .env file');
+const apiKey = process.env.GEMINI_API_KEY;
+if (!apiKey || apiKey === 'your_gemini_api_key_here' || apiKey.trim() === '') {
+  console.error('❌ GEMINI_API_KEY is not set or is using placeholder value');
+  console.error('Please add your actual API key to the .env file');
+  console.error('Get your API key from: https://makersuite.google.com/app/apikey');
 }
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+// Only initialize if we have a valid API key
+const genAI = apiKey && apiKey !== 'your_gemini_api_key_here' 
+  ? new GoogleGenerativeAI(apiKey) 
+  : null;
 
 // Default model - gemini-2.0-flash
 // Users can override with GEMINI_MODEL environment variable
@@ -17,8 +22,9 @@ const DEFAULT_MODEL = 'gemini-2.0-flash';
 
 export async function reviewCode(code, language) {
   // Check API key
-  if (!process.env.GEMINI_API_KEY) {
-    throw new Error('API key not configured. Please set GEMINI_API_KEY in environment variables.');
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey || apiKey === 'your_gemini_api_key_here' || apiKey.trim() === '' || !genAI) {
+    throw new Error('API key not configured. Please set GEMINI_API_KEY in your .env file with a valid API key from https://makersuite.google.com/app/apikey');
   }
 
   try {

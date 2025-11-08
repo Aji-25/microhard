@@ -7,6 +7,15 @@ import githubRouter from './routes/github.js';
 // Load environment variables
 dotenv.config();
 
+// Validate critical environment variables on startup
+const apiKey = process.env.GEMINI_API_KEY;
+if (!apiKey || apiKey === 'your_gemini_api_key_here' || apiKey.trim() === '') {
+  console.warn('⚠️  WARNING: GEMINI_API_KEY is not configured or is using placeholder value');
+  console.warn('   Code review features will not work until you set a valid API key');
+  console.warn('   Get your API key from: https://makersuite.google.com/app/apikey');
+  console.warn('   Then update server/.env file with: GEMINI_API_KEY=your_actual_key_here\n');
+}
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
