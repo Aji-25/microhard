@@ -3,11 +3,13 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Button } from './ui/button';
 import { Progress } from './ui/progress';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { Terminal, Skull, Code, Zap, Ghost } from 'lucide-react';
+import { Terminal, Skull, Code, Zap, Ghost, Check, X, Copy, GitPullRequest } from 'lucide-react';
 import { Textarea } from './ui/textarea';
+import { Input } from './ui/input';
 import { ParallaxContainer } from './ParallaxContainer';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
-import { reviewCode, fixCode, ReviewResponse } from '../services/api';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from './ui/dialog';
+import { reviewCode, ReviewResponse, createPullRequest, fetchGitHubRepos, getStoredGitHubToken } from '../services/api';
 
 const codeTemplates: Record<string, { code: string; extension: string }> = {
   javascript: {
@@ -124,7 +126,16 @@ export function Demo({ onErrorIntensityChange }: DemoProps) {
   const [reviewData, setReviewData] = useState<ReviewResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isFixing, setIsFixing] = useState(false);
-  const [autoReviewEnabled, setAutoReviewEnabled] = useState(true);
+  const [improvedCode, setImprovedCode] = useState<string | null>(null);
+  const [codeAccepted, setCodeAccepted] = useState(false);
+  const [isAutoReviewing, setIsAutoReviewing] = useState(false);
+  const [showPRModal, setShowPRModal] = useState(false);
+  const [showUpdatedCodeModal, setShowUpdatedCodeModal] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [repos, setRepos] = useState<any[]>([]);
+  const [selectedRepo, setSelectedRepo] = useState<string>('');
+  const [filePath, setFilePath] = useState<string>('');
+  const [isCreatingPR, setIsCreatingPR] = useState(false);
   const audioContextRef = useRef<AudioContext | null>(null);
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isManualReviewRef = useRef(false);
@@ -195,7 +206,7 @@ export function Demo({ onErrorIntensityChange }: DemoProps) {
     setError(null);
   };
 
-  // Debounced auto-review effect
+  // Debounced auto-review effect - triggers when user stops typing for 2 seconds
   useEffect(() => {
     // Skip auto-review on initial mount (when component first loads with template code)
     if (isInitialMountRef.current) {
@@ -210,11 +221,10 @@ export function Demo({ onErrorIntensityChange }: DemoProps) {
     }
 
     // Don't auto-review if:
-    // - Auto-review is disabled
     // - Code is empty
-    // - Currently analyzing
+    // - Currently analyzing (manual or auto)
     // - This is a manual review (button click)
-    if (!autoReviewEnabled || !code.trim() || isAnalyzing || isManualReviewRef.current) {
+    if (!code.trim() || isAnalyzing || isManualReviewRef.current) {
       // Reset manual review flag after a short delay
       if (isManualReviewRef.current) {
         setTimeout(() => {
@@ -224,15 +234,18 @@ export function Demo({ onErrorIntensityChange }: DemoProps) {
       return;
     }
 
-    // Set a timer to auto-review after user stops typing for 2.5 seconds
-    debounceTimerRef.current = setTimeout(() => {
+    // Set a timer to auto-review after user stops typing for 2 seconds
+    debounceTimerRef.current = setTimeout(async () => {
       // Double-check conditions before triggering review
-      if (code.trim() && !isAnalyzing && autoReviewEnabled && !isManualReviewRef.current) {
-        console.log('🔄 Auto-review triggered after 2.5s debounce');
+      if (code.trim() && !isAnalyzing && !isManualReviewRef.current) {
+        console.log('🔄 Auto-review triggered after 2s of inactivity');
+        setIsAutoReviewing(true);
+        // Small delay to show the "Calling Gemini..." indicator
+        await new Promise(resolve => setTimeout(resolve, 100));
         // Call summonReaper with isManual=false to indicate auto-review
-        summonReaper(false);
+        await summonReaper(false);
       }
-    }, 2500); // 2.5 second debounce
+    }, 2000); // 2 second debounce
 
     // Cleanup function
     return () => {
@@ -242,7 +255,7 @@ export function Demo({ onErrorIntensityChange }: DemoProps) {
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [code, selectedLanguage, autoReviewEnabled, isAnalyzing]);
+  }, [code, selectedLanguage, isAnalyzing]);
 
   const summonReaper = async (isManual = true) => {
     if (!code.trim()) {
@@ -264,6 +277,8 @@ export function Demo({ onErrorIntensityChange }: DemoProps) {
         clearTimeout(debounceTimerRef.current);
         debounceTimerRef.current = null;
       }
+      // Clear auto-reviewing state if it was set
+      setIsAutoReviewing(false);
     }
     
     setIsAnalyzing(true);
@@ -305,7 +320,7 @@ export function Demo({ onErrorIntensityChange }: DemoProps) {
     }, 50);
 
     try {
-      // Call the real API
+      // Call the review API
       const result = await reviewCode(code, selectedLanguage);
       
       // Stop the progress animation
@@ -315,9 +330,24 @@ export function Demo({ onErrorIntensityChange }: DemoProps) {
       setCurseLevel(result.curseLevel);
       setReviewData(result);
       
+      // Use updatedCode from review response if available
+      if (result.updatedCode) {
+        setImprovedCode(result.updatedCode);
+        setCodeAccepted(false); // Reset acceptance state for new review
+        // Show modal with updated code after a brief delay
+        setTimeout(() => {
+          setShowUpdatedCodeModal(true);
+        }, 500);
+      } else {
+        setImprovedCode(null);
+        setCodeAccepted(false);
+        setShowUpdatedCodeModal(false);
+      }
+      
       // Show response after a brief delay
       setTimeout(() => {
         setIsAnalyzing(false);
+        setIsAutoReviewing(false);
         setShowResponse(true);
         setShowGhosts(false);
       }, 300);
@@ -343,32 +373,117 @@ export function Demo({ onErrorIntensityChange }: DemoProps) {
       
       setError(errorMessage);
       setIsAnalyzing(false);
+      setIsAutoReviewing(false);
       setShowResponse(true);
       setShowGhosts(false);
     }
   };
 
-  const handleAutoFix = async () => {
-    if (!code.trim() || !reviewData) return;
-    
-    setIsFixing(true);
-    setError(null);
+  const showToast = (message: string) => {
+    setToastMessage(message);
+    setTimeout(() => {
+      setToastMessage(null);
+    }, 3000);
+  };
+
+  const handleAcceptCode = async () => {
+    if (!improvedCode) return;
+    setCode(improvedCode);
+    setCodeAccepted(true);
+    setShowUpdatedCodeModal(false);
+    showToast('💀 Code accepted! Opening PR creation...');
+    // Automatically open PR modal after accepting
+    setTimeout(async () => {
+      await handleOpenPRModal();
+    }, 500);
+  };
+
+  const handleDiscardCode = () => {
+    setImprovedCode(null);
+    setCodeAccepted(false);
+    setShowUpdatedCodeModal(false);
+    showToast('🗑️ Changes discarded');
+  };
+
+  const handleCopyCode = async () => {
+    if (!improvedCode) return;
+    try {
+      await navigator.clipboard.writeText(improvedCode);
+      showToast('📋 Copied to clipboard!');
+    } catch (err) {
+      console.error('Failed to copy:', err);
+      showToast('❌ Failed to copy to clipboard');
+    }
+  };
+
+  const handleOpenPRModal = async () => {
+    if (!improvedCode || !reviewData) {
+      setError('No improved code available. Please review your code first.');
+      return;
+    }
+
+    const token = getStoredGitHubToken();
+    if (!token) {
+      // Trigger GitHub OAuth - use the API service function
+      const { initiateGitHubOAuth } = await import('../services/api');
+      initiateGitHubOAuth();
+      return;
+    }
 
     try {
-      const result = await fixCode(code, selectedLanguage);
-      setCode(result.fixedCode);
-      setReviewData(null);
-      setShowResponse(false);
-      setCurseLevel(0);
-      // Optionally re-run review on fixed code
-      setTimeout(() => {
-        summonReaper();
-      }, 500);
+      const reposData = await fetchGitHubRepos(token);
+      setRepos(reposData.repos);
+      setShowPRModal(true);
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to fix code';
+      console.error('Failed to fetch repos:', err);
+      setError('Failed to fetch repositories. Please reconnect GitHub.');
+    }
+  };
+
+  const handleCreatePR = async () => {
+    if (!selectedRepo || !filePath || !improvedCode || !reviewData) return;
+    
+    const token = getStoredGitHubToken();
+    if (!token) {
+      setError('GitHub token not found. Please reconnect.');
+      return;
+    }
+
+    const [owner, repo] = selectedRepo.split('/');
+    if (!owner || !repo) {
+      setError('Invalid repository format');
+      return;
+    }
+
+    setIsCreatingPR(true);
+    try {
+      // Determine category from review data
+      const category = reviewData.errors.length > 0 ? 'Bug Fix' : 
+                      reviewData.warnings.length > 0 ? 'Code Quality' : 
+                      'Best Practices';
+      
+      const result = await createPullRequest(
+        token,
+        owner,
+        repo,
+        filePath,
+        improvedCode,
+        category,
+        reviewData.verdict
+      );
+
+      // Open PR in new tab
+      window.open(result.url, '_blank');
+      setShowPRModal(false);
+      setCodeAccepted(false);
+      setImprovedCode(null);
+      setShowUpdatedCodeModal(false);
+      showToast('💀 Pull request raised from the underworld!');
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to create PR';
       setError(errorMessage);
     } finally {
-      setIsFixing(false);
+      setIsCreatingPR(false);
     }
   };
 
@@ -528,16 +643,38 @@ export function Demo({ onErrorIntensityChange }: DemoProps) {
                 
                 {/* Editable Code Area */}
                 <div className="p-4 flex-1 flex flex-col relative">
+                  {/* Auto-review loading indicator - shows when auto-review is triggered */}
+                  {isAutoReviewing && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      className="absolute top-2 left-4 right-4 z-10 bg-purple-900/80 border border-purple-500/50 rounded px-3 py-2 flex items-center gap-2 backdrop-blur-sm shadow-lg"
+                      style={{ fontFamily: "'Share Tech Mono', monospace" }}
+                    >
+                      <motion.div
+                        className="w-4 h-4 border-2 border-purple-400 border-t-transparent rounded-full"
+                        animate={{ rotate: 360 }}
+                        transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                      />
+                      <span className="text-purple-300 text-xs font-medium">Calling Gemini...</span>
+                    </motion.div>
+                  )}
                   <Textarea
                     value={code}
                     onChange={(e) => {
                       setCode(e.target.value);
                       // Reset manual review flag when user types
                       isManualReviewRef.current = false;
+                      // Clear improved code and acceptance state when user types
+                      setImprovedCode(null);
+                      setCodeAccepted(false);
+                      // Clear auto-reviewing state when user types
+                      setIsAutoReviewing(false);
                     }}
                     className="flex-1 bg-transparent border-none text-green-400 resize-none focus-visible:ring-0 focus-visible:ring-offset-0 overflow-auto"
                     style={{ fontFamily: "'Share Tech Mono', monospace" }}
-                    placeholder="Paste your cursed code here... (Auto-review after 2.5s of inactivity)"
+                    placeholder="Paste your cursed code here... (Auto-review after 2s of inactivity)"
                     spellCheck={false}
                   />
                   {/* Cursor blink effect */}
@@ -858,6 +995,22 @@ export function Demo({ onErrorIntensityChange }: DemoProps) {
                               </p>
                             </motion.div>
                           )}
+
+                          {/* Show updated code indicator if available */}
+                          {reviewData?.updatedCode && !showUpdatedCodeModal && (
+                            <motion.div
+                              initial={{ opacity: 0, y: 10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              className="p-3 bg-purple-950/40 border border-purple-500/50 rounded-lg cursor-pointer hover:bg-purple-950/60 transition-colors"
+                              onClick={() => setShowUpdatedCodeModal(true)}
+                            >
+                              <p className="text-purple-300 text-sm flex items-center gap-2" style={{ fontFamily: "'Share Tech Mono', monospace" }}>
+                                <Ghost className="w-4 h-4" />
+                                <span>👻 The Reaper has improved your code. Click to view changes.</span>
+                              </p>
+                            </motion.div>
+                          )}
+
                         </motion.div>
                       )}
 
@@ -911,41 +1064,6 @@ export function Demo({ onErrorIntensityChange }: DemoProps) {
                     </Button>
                   </motion.div>
 
-                  {/* Auto-Review Toggle */}
-                  <div className="flex items-center justify-center gap-2 mt-2">
-                    <input
-                      type="checkbox"
-                      id="auto-review-toggle"
-                      checked={autoReviewEnabled}
-                      onChange={(e) => setAutoReviewEnabled(e.target.checked)}
-                      className="w-4 h-4 rounded border-gray-600 bg-gray-800 text-purple-600 focus:ring-purple-500"
-                    />
-                    <label
-                      htmlFor="auto-review-toggle"
-                      className="text-xs text-gray-400 cursor-pointer"
-                      style={{ fontFamily: "'Share Tech Mono', monospace" }}
-                    >
-                      Auto-review (reviews after 2.5s of inactivity)
-                    </label>
-                  </div>
-
-                    {showResponse && reviewData && (reviewData.errors.length > 0 || reviewData.warnings.length > 0) && (
-                      <motion.div
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
-                      >
-                        <Button
-                          onClick={handleAutoFix}
-                          disabled={isFixing || !code.trim()}
-                          className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 border-2 border-green-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
-                          style={{ fontFamily: "'Share Tech Mono', monospace" }}
-                        >
-                          {isFixing ? 'Exorcising...' : '✨ Auto-Exorcise (Fix Code)'}
-                        </Button>
-                      </motion.div>
-                    )}
                   </div>
                 </div>
               </div>
@@ -953,6 +1071,203 @@ export function Demo({ onErrorIntensityChange }: DemoProps) {
           </ParallaxContainer>
         </div>
       </div>
+
+      {/* PR Creation Modal */}
+      <Dialog open={showPRModal} onOpenChange={setShowPRModal}>
+        <DialogContent className="bg-black/95 border-purple-500/50 text-white max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-purple-400" style={{ fontFamily: "'Share Tech Mono', monospace" }}>
+              Create Pull Request
+            </DialogTitle>
+            <DialogDescription className="text-gray-400" style={{ fontFamily: "'Share Tech Mono', monospace" }}>
+              Select repository and file path for your improved code
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div>
+              <label className="text-sm text-gray-400 mb-2 block" style={{ fontFamily: "'Share Tech Mono', monospace" }}>
+                Repository
+              </label>
+              <Select value={selectedRepo} onValueChange={setSelectedRepo}>
+                <SelectTrigger className="bg-gray-900 border-gray-700 text-white">
+                  <SelectValue placeholder="Select repository" />
+                </SelectTrigger>
+                <SelectContent className="bg-gray-900 border-gray-700">
+                  {repos.map((repo) => (
+                    <SelectItem key={repo.full_name} value={repo.full_name} className="text-white">
+                      {repo.full_name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <label className="text-sm text-gray-400 mb-2 block" style={{ fontFamily: "'Share Tech Mono', monospace" }}>
+                File Path (e.g., src/main.js)
+              </label>
+              <Input
+                value={filePath}
+                onChange={(e) => setFilePath(e.target.value)}
+                placeholder="src/main.js"
+                className="bg-gray-900 border-gray-700 text-white"
+                style={{ fontFamily: "'Share Tech Mono', monospace" }}
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              onClick={() => setShowPRModal(false)}
+              variant="outline"
+              className="border-gray-700 text-gray-300 hover:bg-gray-800"
+              style={{ fontFamily: "'Share Tech Mono', monospace" }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleCreatePR}
+              disabled={!selectedRepo || !filePath || isCreatingPR}
+              className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+              style={{ fontFamily: "'Share Tech Mono', monospace" }}
+            >
+              {isCreatingPR ? 'Creating...' : 'Create PR'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Updated Code Modal with Diff */}
+      <Dialog open={showUpdatedCodeModal} onOpenChange={setShowUpdatedCodeModal}>
+        <DialogContent className="bg-black/98 border-red-500/50 text-white max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+          {/* Fog/Glow overlay effect */}
+          <div className="absolute inset-0 bg-gradient-to-br from-red-900/20 via-purple-900/20 to-red-900/20 pointer-events-none" />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-red-500/10 via-transparent to-transparent pointer-events-none" />
+          
+          <DialogHeader className="relative z-10">
+            <DialogTitle className="text-red-400 flex items-center gap-2" style={{ fontFamily: "'Share Tech Mono', monospace" }}>
+              <Ghost className="w-5 h-5" />
+              The Reaper Has Improved Your Code
+            </DialogTitle>
+            <DialogDescription className="text-gray-400" style={{ fontFamily: "'Share Tech Mono', monospace" }}>
+              Review the changes below and choose an action
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="relative z-10 flex-1 overflow-auto space-y-4 py-4">
+            {/* Changes Summary */}
+            {reviewData?.changes && reviewData.changes.length > 0 && (
+              <div className="bg-gray-900/50 border border-gray-700 rounded-lg p-4">
+                <p className="text-sm text-gray-300 mb-2" style={{ fontFamily: "'Share Tech Mono', monospace" }}>
+                  Changes ({reviewData.changes.length} line{reviewData.changes.length !== 1 ? 's' : ''} modified):
+                </p>
+                <div className="space-y-2 max-h-32 overflow-auto">
+                  {reviewData.changes.map((change, idx) => (
+                    <div key={idx} className="bg-black/50 rounded p-2 text-xs">
+                      <div className="flex items-start gap-2">
+                        <span className="text-gray-500 flex-shrink-0">Line {change.line}:</span>
+                        <div className="flex-1 space-y-1">
+                          <div className="text-red-400 line-through opacity-70">
+                            <span className="text-gray-600">-</span> {change.old}
+                          </div>
+                          <div className="text-green-400">
+                            <span className="text-gray-600">+</span> {change.new}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Updated Code Preview */}
+            {improvedCode && (
+              <div className="bg-gray-900/50 border border-gray-700 rounded-lg">
+                <div className="bg-gray-800/50 px-4 py-2 border-b border-gray-700 flex items-center justify-between">
+                  <p className="text-sm text-gray-300" style={{ fontFamily: "'Share Tech Mono', monospace" }}>
+                    Updated Code Preview
+                  </p>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger>
+                        <span className="text-xs text-gray-500">👁 The Reaper altered this code</span>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Hover over changed lines to see what was modified</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
+                <div className="p-4 max-h-96 overflow-auto">
+                  <pre className="text-green-300 text-xs whitespace-pre-wrap relative" style={{ fontFamily: "'Share Tech Mono', monospace" }}>
+                    <code>
+                      {improvedCode.split('\n').map((line, lineNum) => {
+                        const lineNumber = lineNum + 1;
+                        const isChanged = reviewData?.changes?.some(c => c.line === lineNumber);
+                        return (
+                          <div
+                            key={lineNum}
+                            className={`px-2 py-0.5 ${isChanged ? 'bg-purple-900/30 border-l-2 border-purple-500' : ''}`}
+                            title={isChanged ? '👁 The Reaper altered this line' : ''}
+                          >
+                            {line || '\u00A0'}
+                          </div>
+                        );
+                      })}
+                    </code>
+                  </pre>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="relative z-10 gap-2">
+            <Button
+              onClick={handleDiscardCode}
+              variant="outline"
+              className="border-red-500 text-red-400 hover:bg-red-950/50"
+              style={{ fontFamily: "'Share Tech Mono', monospace" }}
+            >
+              <X className="w-4 h-4 mr-2" />
+              Discard Changes
+            </Button>
+            <Button
+              onClick={handleCopyCode}
+              variant="outline"
+              className="border-purple-500 text-purple-400 hover:bg-purple-950/50"
+              style={{ fontFamily: "'Share Tech Mono', monospace" }}
+            >
+              <Copy className="w-4 h-4 mr-2" />
+              Copy Updated Code
+            </Button>
+            <Button
+              onClick={handleAcceptCode}
+              className="bg-gradient-to-r from-red-600 to-purple-600 hover:from-red-700 hover:to-purple-700 text-white"
+              style={{ fontFamily: "'Share Tech Mono', monospace" }}
+            >
+              <Ghost className="w-4 h-4 mr-2" />
+              Accept & Create Pull Request
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Toast Notification */}
+      <AnimatePresence>
+        {toastMessage && (
+          <motion.div
+            initial={{ opacity: 0, y: 50, x: '-50%' }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 50 }}
+            className="fixed bottom-8 left-1/2 transform -translate-x-1/2 z-50 bg-black/90 border-2 border-purple-500/50 rounded-lg px-6 py-3 shadow-2xl backdrop-blur-sm"
+            style={{ fontFamily: "'Share Tech Mono', monospace" }}
+          >
+            <p className="text-white text-sm font-medium">{toastMessage}</p>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Add shake keyframes to global styles */}
       <style>{`

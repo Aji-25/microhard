@@ -64,34 +64,51 @@ export default function App() {
     <div className="relative bg-[#0A0A0A] text-white overflow-x-hidden min-h-screen">
       {/* GitHub Button - Sticky Top Right - Always Visible */}
       <motion.div
-        className="fixed top-4 right-4 z-50"
+        className="fixed top-6 right-6 z-50"
         initial={{ opacity: 0, x: 20 }}
         animate={{ opacity: 1, x: 0 }}
         transition={{ duration: 0.8, delay: 0.5 }}
       >
         <Button
           onClick={handleGitHubAuth}
-          className="relative group bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 backdrop-blur-sm text-white px-5 py-2.5 text-sm border-2 border-blue-400/50 overflow-hidden flex items-center gap-2 shadow-xl transition-all hover:scale-105"
+          className="relative group bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-700 hover:via-purple-700 hover:to-pink-700 text-white px-6 py-3 text-sm font-semibold border-2 border-purple-400/60 overflow-hidden flex items-center gap-2 shadow-2xl transition-all hover:scale-110 hover:shadow-purple-500/50"
           style={{ 
             fontFamily: "'Share Tech Mono', monospace",
-            boxShadow: '0 4px 15px rgba(59, 130, 246, 0.5), 0 0 20px rgba(147, 51, 234, 0.3)'
+            boxShadow: '0 8px 25px rgba(99, 102, 241, 0.6), 0 0 30px rgba(147, 51, 234, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.2)',
+            textShadow: '0 2px 4px rgba(0, 0, 0, 0.5)'
           }}
         >
-          {/* Animated glow effect */}
+          {/* Animated gradient shimmer */}
           <motion.div
-            className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent"
+            className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent"
             animate={{
               x: ['-100%', '200%'],
             }}
             transition={{
-              duration: 2,
+              duration: 3,
               repeat: Infinity,
-              repeatDelay: 1,
+              repeatDelay: 0.5,
+              ease: 'linear'
             }}
           />
-          <Github className="w-5 h-5 relative z-10" />
-          <span className="relative z-10 whitespace-nowrap font-semibold">
-            {hasGitHubToken ? 'GitHub ✓' : 'Connect GitHub'}
+          {/* Pulsing glow */}
+          <motion.div
+            className="absolute inset-0 rounded-lg"
+            animate={{
+              boxShadow: [
+                '0 0 20px rgba(147, 51, 234, 0.5)',
+                '0 0 40px rgba(147, 51, 234, 0.8)',
+                '0 0 20px rgba(147, 51, 234, 0.5)',
+              ],
+            }}
+            transition={{
+              duration: 2,
+              repeat: Infinity,
+            }}
+          />
+          <Github className="w-5 h-5 relative z-10 drop-shadow-lg" />
+          <span className="relative z-10 whitespace-nowrap">
+            {hasGitHubToken ? '✓ GitHub' : 'Connect GitHub'}
           </span>
         </Button>
       </motion.div>

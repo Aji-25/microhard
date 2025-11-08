@@ -11,6 +11,10 @@ if (!process.env.GEMINI_API_KEY) {
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
+// Default model - gemini-2.0-flash
+// Users can override with GEMINI_MODEL environment variable
+const DEFAULT_MODEL = 'gemini-2.0-flash';
+
 export async function reviewCode(code, language) {
   // Check API key
   if (!process.env.GEMINI_API_KEY) {
@@ -18,43 +22,49 @@ export async function reviewCode(code, language) {
   }
 
   try {
-    // Use gemini-pro (most widely available model)
-    // If you have access to gemini-1.5-pro or gemini-1.5-flash, change the model name below
-    const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
+    // Use model from env or default to gemini-2.0-flash
+    const modelName = process.env.GEMINI_MODEL || DEFAULT_MODEL;
+    const model = genAI.getGenerativeModel({ model: modelName });
+    console.log(`✅ Using Gemini model: ${modelName}`);
 
-    const prompt = `You are "The Code Reaper" — an expert code reviewer that analyzes ${language} code with technical precision. Your task is to identify REAL issues in the code.
+    const prompt = `You are "The Code Reaper" — an ancient, haunted compiler that performs code reviews and also proposes fixes.
 
-Analyze the following ${language} code line by line and identify:
-1. ERRORS: Critical bugs that will cause the code to fail (syntax errors, type errors, undefined variables, null pointer exceptions, infinite loops, division by zero, etc.)
-2. WARNINGS: Potential issues that may cause problems (memory leaks, security vulnerabilities, performance issues, deprecated APIs, unhandled edge cases, etc.)
-3. SUGGESTIONS: Code quality improvements (better naming, code organization, best practices, optimization opportunities, etc.)
+Analyze the following ${language} code. Then:
+1. Identify all real ERRORS, WARNINGS, and SUGGESTIONS.
+2. Produce an improved version of the code that resolves them.
+3. Return all info as strict valid JSON (no markdown).
 
-Code to review:
+Input:
 \`\`\`${language}
 ${code}
 \`\`\`
 
-IMPORTANT INSTRUCTIONS:
-- Analyze the code ACTUALLY. Don't make up issues. Only report real problems.
-- For errors: Report syntax errors, logic errors, runtime errors that WILL occur
-- For warnings: Report potential security issues, performance problems, bad practices
-- For suggestions: Provide helpful improvements for code quality
-- Use 1-based line numbers (first line is line 1)
-- Be specific and technical in your messages
-- Calculate curseLevel: 0-100 based on actual issues found (0 = perfect code, 100 = completely broken)
+Respond in this exact JSON shape:
+{
+  "errors": [{"line": <number>, "message": "<specific error>"}],
+  "warnings": [{"line": <number>, "message": "<specific warning>"}],
+  "suggestions": [{"line": <number>, "fix": "<specific improvement>"}],
+  "verdict": "<short spooky summary>",
+  "curseLevel": <0-100 integer>,
+  "updatedCode": "<the fully corrected code>",
+  "changes": [{"line": <number>, "old": "<old line>", "new": "<new line>"}]
+}
+
+Guidelines:
+- Only output JSON, never markdown.
+- Maintain original indentation.
+- updatedCode must compile cleanly.
+- Keep arrays even if empty.
+- Use concise, technical messages.
+- Verdict must keep haunted tone.
+- Use 1-based line numbers (first line is line 1).
+- Calculate curseLevel: 0-100 based on actual issues found (0 = perfect code, 100 = completely broken).
   - Each error adds 25-30 points
   - Each warning adds 10-15 points
   - Each suggestion adds 2-5 points
   - Maximum is 100
-
-Return ONLY valid JSON in this exact format (no markdown, no code blocks, no text outside JSON):
-{
-  "errors": [{"line": <number>, "message": "<specific error description>"}],
-  "warnings": [{"line": <number>, "message": "<specific warning description>"}],
-  "suggestions": [{"line": <number>, "fix": "<specific improvement suggestion>"}],
-  "verdict": "<1-2 sentence spooky summary of code quality>",
-  "curseLevel": <0-100 integer>
-}`;
+- For changes array: Include only lines that were actually modified, showing old and new versions.
+- For updatedCode: Provide the complete corrected code with all fixes applied.`;
 
     const result = await model.generateContent(prompt);
     const response = await result.response;
@@ -114,6 +124,10 @@ Return ONLY valid JSON in this exact format (no markdown, no code blocks, no tex
       parsedResponse.suggestions = parsedResponse.suggestions || [];
     }
 
+    // Set defaults for new fields
+    parsedResponse.updatedCode = parsedResponse.updatedCode || null;
+    parsedResponse.changes = Array.isArray(parsedResponse.changes) ? parsedResponse.changes : [];
+
     if (typeof parsedResponse.curseLevel !== 'number') {
       // Calculate curse level based on errors and warnings
       const errorCount = parsedResponse.errors?.length || 0;
@@ -155,8 +169,11 @@ Return ONLY valid JSON in this exact format (no markdown, no code blocks, no tex
       throw new Error('The Reaper is overwhelmed. Please wait a moment and try again.');
     }
 
-    if (error.message?.includes('model') || error.message?.includes('MODEL_NOT_FOUND')) {
-      throw new Error('The Reaper model is not available. Please check your API configuration.');
+    if (error.message?.includes('model') || error.message?.includes('MODEL_NOT_FOUND') || error.message?.includes('404 Not Found') || error.message?.includes('is not found')) {
+      // Provide helpful error message
+      const currentModel = process.env.GEMINI_MODEL || DEFAULT_MODEL;
+      console.error(`❌ Model "${currentModel}" is not available. Error: ${error.message}`);
+      throw new Error(`The Gemini model "${currentModel}" is not available for your API key. Please check your API key permissions and ensure gemini-2.0-flash is available.`);
     }
 
     // Re-throw with context
@@ -171,8 +188,10 @@ export async function fixCode(code, language) {
   }
 
   try {
-    // Use gemini-pro (most widely available model)
-    const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
+    // Use model from env or default to gemini-2.0-flash
+    const modelName = process.env.GEMINI_MODEL || DEFAULT_MODEL;
+    const model = genAI.getGenerativeModel({ model: modelName });
+    console.log(`✅ Using Gemini model for fixCode: ${modelName}`);
 
     const prompt = `You are "The Code Reaper" — an ancient haunted compiler that fixes cursed code.
 
@@ -197,14 +216,20 @@ Return ONLY the fixed code. No explanation, no markdown, no JSON, just the compl
   } catch (error) {
     console.error('Gemini API error (fixCode):', error);
     
-    if (error.message.includes('API key') || error.message.includes('GEMINI_API_KEY')) {
+    if (error.message?.includes('API key') || error.message?.includes('GEMINI_API_KEY') || error.message?.includes('API_KEY_NOT_VALID')) {
       throw new Error('The Reaper could not be summoned… check your API key.');
     }
     
-    if (error.message.includes('quota') || error.message.includes('429') || error.message.includes('Too Many Requests')) {
+    if (error.message?.includes('quota') || error.message?.includes('429') || error.message?.includes('Too Many Requests') || error.message?.includes('RESOURCE_EXHAUSTED')) {
       throw new Error('The Reaper is overwhelmed. Please wait a moment and try again.');
     }
 
-    throw new Error(`Auto-exorcise failed: ${error.message}`);
+    if (error.message?.includes('model') || error.message?.includes('MODEL_NOT_FOUND') || error.message?.includes('404 Not Found') || error.message?.includes('is not found')) {
+      const currentModel = process.env.GEMINI_MODEL || DEFAULT_MODEL;
+      console.error(`❌ Model "${currentModel}" is not available. Error: ${error.message}`);
+      throw new Error(`The Gemini model "${currentModel}" is not available for your API key. Please check your API key permissions and ensure gemini-2.0-flash is available.`);
+    }
+
+    throw new Error(`Auto-exorcise failed: ${error.message || 'Unknown error'}`);
   }
 }

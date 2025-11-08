@@ -39,12 +39,20 @@ export interface ReviewSuggestion {
   fix: string;
 }
 
+export interface CodeChange {
+  line: number;
+  old: string;
+  new: string;
+}
+
 export interface ReviewResponse {
   errors: ReviewError[];
   warnings: ReviewWarning[];
   suggestions: ReviewSuggestion[];
   verdict: string;
   curseLevel: number;
+  updatedCode?: string | null;
+  changes?: CodeChange[];
 }
 
 export interface FixResponse {
