@@ -9,13 +9,21 @@ An AI-powered haunted code reviewer built with Google Gemini that provides real-
 ## ✨ Features
 
 - **🔍 AI-Powered Code Review**: Leverages Google Gemini 2.0 Flash for intelligent code analysis
-- **💀 Halloween Theme**: Spooky, haunted interface with animations and effects
-- **📊 Visual Code Improvements**: See your code transformed with highlighted changes
+- **💀 Halloween Theme**: Spooky, haunted interface with cinematic animations and effects
+  - Binary rain background effect
+  - Fog and atmospheric lighting
+  - Ghost flicker animations
+  - Lightning flash effects
+  - Screen shake on code review
+  - Audio effects (scream sounds)
+- **📊 Visual Code Improvements**: See your code transformed with highlighted changes and diff view
 - **📋 Copy to Clipboard**: Easily copy improved code with one click
 - **🔗 GitHub Integration**: OAuth authentication and direct pull request creation
-- **💻 Multi-Language Support**: JavaScript, TypeScript, Python, Java, C++, Rust, and more
+- **💻 Multi-Language Support**: JavaScript, TypeScript, Python, Java, C++, Rust
 - **⚡ Modern UI**: Beautiful interface built with React, Tailwind CSS, and Radix UI
 - **🎯 Manual Review**: Trigger reviews only when you click the button (no auto-review)
+- **📈 Curse Level System**: Visual indicator (0-100) showing code quality
+- **🎨 Interactive Animations**: Smooth transitions and hover effects throughout
 
 ## 🛠️ Tech Stack
 
@@ -34,6 +42,7 @@ An AI-powered haunted code reviewer built with Google Gemini that provides real-
 - **Google Generative AI (Gemini 2.0 Flash)** - AI code analysis
 - **GitHub OAuth** - Authentication and PR creation
 - **CORS** - Cross-origin resource sharing
+- **RunAnywhere SDK** (Optional) - Deploy as portable microservice
 
 ## 📋 Prerequisites
 
@@ -50,12 +59,15 @@ An AI-powered haunted code reviewer built with Google Gemini that provides real-
 
 ```bash
 git clone https://github.com/yourusername/microhard.git
-cd microhard
+cd microhard/microhard
 ```
+
+**Note**: The project is located in the `microhard/` subdirectory.
 
 ### 2. Install Dependencies
 
 ```bash
+# From the microhard/ directory
 # Install all dependencies (recommended)
 npm run install:all
 
@@ -84,6 +96,9 @@ GITHUB_CLIENT_ID=your_github_client_id
 GITHUB_CLIENT_SECRET=your_github_client_secret
 GITHUB_REDIRECT_URI=http://localhost:3000/api/github/callback
 
+# Optional - RunAnywhere SDK (for microservice deployment)
+RUNANYWHERE_TOKEN=your_runanywhere_token
+
 # Server Configuration
 PORT=3000
 CLIENT_URL=http://localhost:5173
@@ -93,10 +108,10 @@ NODE_ENV=development
 ### 4. Start the Application
 
 ```bash
-# From root directory - starts both servers
+# From microhard/ directory - starts both servers
 npm run dev
 
-# Or start manually:
+# Or start manually in separate terminals:
 # Terminal 1 - Backend
 cd server
 npm run dev
@@ -105,6 +120,8 @@ npm run dev
 cd client
 npm run dev
 ```
+
+**Note**: The `npm run dev` command runs both servers concurrently. Make sure both ports (3000 and 5173) are available.
 
 The application will be available at:
 - **Frontend**: http://localhost:5173
@@ -157,44 +174,62 @@ The application will be available at:
 
 ### Keyboard Shortcuts
 
-- **Ctrl + Shift + R**: Scroll to demo section and summon the reaper
+- **Ctrl + Shift + R** (or **Cmd + Shift + R** on Mac): Scroll to demo section and automatically trigger code review
+
+### Visual Effects
+
+The application includes several atmospheric effects that enhance the spooky theme:
+
+- **Binary Rain**: Animated falling binary code in the background
+- **Fog Background**: Dynamic fog effect that intensifies with curse level
+- **Ghost Flicker**: Random ghost animations during code analysis
+- **Lightning Flash**: Lightning effects that appear during review
+- **Screen Shake**: Screen shake animation when summoning the reaper
+- **Audio Effects**: Creepy scream sounds during code analysis
 
 ## 📁 Project Structure
 
 ```
-aicodereviewer/
+microhard/
 ├── client/                    # Frontend application
 │   ├── public/
 │   │   └── favicon.svg       # App favicon
 │   ├── src/
-│   │   ├── components/        # React components
-│   │   │   ├── Demo.tsx      # Main demo component
-│   │   │   ├── Hero.tsx      # Landing page hero
-│   │   │   ├── HowItWorks.tsx
-│   │   │   ├── ui/           # Radix UI components
-│   │   │   └── ...
+│   │   ├── components/       # React components
+│   │   │   ├── Demo.tsx      # Main demo component with code editor
+│   │   │   ├── Hero.tsx      # Landing page hero section
+│   │   │   ├── HowItWorks.tsx # Feature explanation
+│   │   │   ├── AudioControls.tsx # Audio effects
+│   │   │   ├── BinaryRain.tsx # Animated background effect
+│   │   │   ├── FogBackground.tsx # Atmospheric fog effect
+│   │   │   ├── GhostFlicker.tsx # Ghost animation
+│   │   │   ├── LightningFlash.tsx # Lightning effects
+│   │   │   ├── ParallaxContainer.tsx # Parallax scrolling
+│   │   │   └── ui/           # Radix UI components (50+ components)
 │   │   ├── services/
 │   │   │   └── api.ts        # API service layer
+│   │   ├── styles/
+│   │   │   └── globals.css   # Global styles
 │   │   ├── App.tsx           # Root component
 │   │   ├── main.tsx          # Entry point
-│   │   └── index.css         # Global styles
+│   │   └── index.css         # Base styles
 │   ├── package.json
-│   ├── vite.config.ts        # Vite configuration
+│   ├── vite.config.ts       # Vite configuration
 │   └── tailwind.config.js    # Tailwind configuration
 │
 ├── server/                    # Backend application
 │   ├── src/
 │   │   ├── routes/
 │   │   │   ├── review.js     # Code review endpoint
-│   │   │   └── github.js     # GitHub OAuth & PR
+│   │   │   └── github.js     # GitHub OAuth & PR creation
 │   │   ├── services/
 │   │   │   └── gemini.js     # Gemini AI integration
 │   │   └── server.js         # Express server setup
+│   ├── runanywhere.js        # RunAnywhere SDK integration (optional)
 │   ├── package.json
 │   └── .env                  # Environment variables (create this)
 │
-├── .gitignore
-├── package.json              # Root package.json
+├── package.json              # Root package.json with scripts
 └── README.md                 # This file
 ```
 
@@ -250,6 +285,7 @@ GET /api/health
 | `GITHUB_CLIENT_ID` | ⚠️ Optional | GitHub OAuth app client ID |
 | `GITHUB_CLIENT_SECRET` | ⚠️ Optional | GitHub OAuth app secret |
 | `GITHUB_REDIRECT_URI` | ⚠️ Optional | OAuth callback URL (must match GitHub app settings) |
+| `RUNANYWHERE_TOKEN` | ⚠️ Optional | RunAnywhere SDK token for microservice deployment |
 | `PORT` | No | Server port (default: 3000) |
 | `CLIENT_URL` | No | Frontend URL (default: http://localhost:5173) |
 | `NODE_ENV` | No | Environment mode (development/production) |
@@ -262,24 +298,90 @@ GET /api/health
 
 ## 🎨 Features in Detail
 
+### Supported Languages
+
+The Code Reaper supports the following programming languages:
+
+- **JavaScript** - Full ES6+ support
+- **TypeScript** - Type-safe JavaScript
+- **Python** - Python 3.x syntax
+- **Java** - Java 8+ features
+- **C++** - Modern C++ standards
+- **Rust** - Rust language features
+
+Each language has pre-configured code templates with intentional bugs for testing.
+
 ### Code Review Process
 
-1. **Input**: User enters code and selects language
-2. **Analysis**: Code is sent to Gemini 2.0 Flash for review
-3. **Response**: AI returns structured review with:
-   - Errors (critical issues)
-   - Warnings (potential problems)
-   - Suggestions (improvements)
-   - Improved code (with fixes applied)
-   - Curse level (0-100, indicating code quality)
-4. **Display**: Results shown with visual highlights and diff view
+1. **Input**: User enters code and selects language from dropdown
+2. **Summon**: Click "Summon the Reaper" button (or press `Ctrl + Shift + R`)
+3. **Analysis**: Code is sent to Gemini 2.0 Flash for review
+   - Visual effects activate (ghosts, lightning, fog)
+   - Curse level animates during analysis
+   - Screen shake and audio effects play
+4. **Response**: AI returns structured review with:
+   - **Errors** (critical issues) - Red indicators
+   - **Warnings** (potential problems) - Yellow indicators
+   - **Suggestions** (improvements) - Purple indicators
+   - **Improved code** (with fixes applied) - Complete corrected version
+   - **Curse level** (0-100) - Visual progress bar indicating code quality
+     - 0-25: Clean code (green)
+     - 26-50: Minor issues (yellow)
+     - 51-75: Moderate issues (orange)
+     - 76-100: Critical issues (red)
+   - **Changes array** - Line-by-line diff showing what changed
+5. **Display**: Results shown with visual highlights, diff view, and improved code modal
+6. **Actions**: 
+   - Copy improved code to clipboard
+   - Accept changes and create GitHub PR
+   - Discard changes
 
 ### GitHub Integration
 
-- **OAuth Flow**: Secure authentication via GitHub
-- **Repository Selection**: Browse and select from your repositories
-- **PR Creation**: Automatically creates branch, commits changes, and opens PR
-- **PR Details**: Includes category, explanation, and improved code
+- **OAuth Flow**: Secure authentication via GitHub OAuth 2.0
+- **Repository Selection**: Browse and select from your accessible repositories
+- **PR Creation**: Automatically:
+  1. Creates a new branch with unique name
+  2. Commits the improved code to the branch
+  3. Opens a pull request against the main branch
+  4. Includes category, explanation, and improved code in PR description
+- **Token Storage**: GitHub token stored securely in browser localStorage
+- **Error Handling**: Clear error messages for OAuth failures
+
+### RunAnywhere SDK Integration (Optional)
+
+The Code Reaper can be deployed as a portable microservice using the RunAnywhere SDK. This allows you to expose the code review functionality as serverless functions.
+
+**Features:**
+- Deploy code review logic as a microservice
+- Expose functions via RunAnywhere API endpoints
+- Automatic scaling and deployment
+- No server management required
+
+**To Enable:**
+
+1. Install the RunAnywhere SDK:
+   ```bash
+   cd server
+   npm install runanywhere-sdk
+   ```
+
+2. Get your RunAnywhere token from [RunAnywhere](https://runanywhere.ai)
+
+3. Add to `server/.env`:
+   ```env
+   RUNANYWHERE_TOKEN=your_runanywhere_token
+   ```
+
+4. The microservice will start automatically when the server starts
+
+**Available Functions:**
+
+Once deployed, your functions will be available at:
+- `https://runanywhere.ai/api/<teamname>/reviewCode` - Code review endpoint
+- `https://runanywhere.ai/api/<teamname>/autoFix` - Auto-fix endpoint
+
+**Note:** The RunAnywhere integration is optional. The app works perfectly fine with just the local Express server. The SDK integration is disabled by default and only activates when `RUNANYWHERE_TOKEN` is set.
 
 ## 🐛 Troubleshooting
 
@@ -317,8 +419,27 @@ GET /api/health
 ### Frontend not connecting to backend
 
 - Ensure backend is running on port 3000
-- Check that `CLIENT_URL` in server `.env` matches frontend URL
+- Check that `CLIENT_URL` in server `.env` matches frontend URL (http://localhost:5173)
 - Verify CORS is configured correctly
+- Check browser console for CORS errors
+- Ensure Vite proxy is configured correctly (should use `/api` prefix)
+
+### Visual effects not working
+
+- Check browser console for errors
+- Ensure JavaScript is enabled
+- Try refreshing the page
+- Check that Motion library is properly installed
+
+### RunAnywhere SDK not starting
+
+- **Cause**: Missing SDK or invalid token
+- **Solution**:
+  1. Install RunAnywhere SDK: `npm install runanywhere-sdk` in `server/` directory
+  2. Verify `RUNANYWHERE_TOKEN` is set in `server/.env`
+  3. Check that the token is valid
+  4. The app will continue to work with the local Express server even if RunAnywhere fails
+  5. Check server logs for specific error messages
 
 ## 🧪 Development
 
@@ -371,9 +492,43 @@ npm start
 
 Contributions are welcome! Please feel free to submit a Pull Request.
 
+### Development Guidelines
+
+1. **Code Style**: Follow existing code style and use TypeScript for type safety
+2. **Components**: Use functional components with hooks
+3. **Styling**: Use Tailwind CSS utility classes
+4. **Animations**: Use Motion (Framer Motion) for animations
+5. **API**: Follow RESTful conventions for API endpoints
+6. **Testing**: Test your changes locally before submitting
+
+### How to Contribute
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
 ## 📄 License
 
 This project is open source and available under the MIT License.
+
+## 🎬 Demo
+
+Watch the demo video to see Code Reaper in action:
+
+🎥 [Demo Video on Google Drive](https://drive.google.com/file/d/1byr4KX9EXAPctizE2CBanNt5lTSMPce5/view?usp=drive_link)
+
+## 📊 Project Status
+
+- ✅ Core code review functionality
+- ✅ GitHub OAuth integration
+- ✅ Pull request creation
+- ✅ Multi-language support
+- ✅ Visual effects and animations
+- ✅ Responsive design
+- 🔄 Additional language support (coming soon)
+- 🔄 Batch code review (coming soon)
 
 ## 🙏 Acknowledgments
 
