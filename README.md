@@ -42,6 +42,8 @@ An AI-powered haunted code reviewer built with Google Gemini that provides real-
 - **Google Gemini API Key** - [Get one here](https://makersuite.google.com/app/apikey)
 - **GitHub OAuth App** (Optional, for PR features) - [Create one here](https://github.com/settings/developers)
 
+- 🎥 **Demo Video:** [Watch on Google Drive](https://drive.google.com/file/d/1byr4KX9EXAPctizE2CBanNt5lTSMPce5/view?usp=drive_link)
+
 ## 🚀 Quick Start
 
 ### 1. Clone the Repository
