@@ -47,8 +47,8 @@ An AI-powered haunted code reviewer built with Google Gemini that provides real-
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/yourusername/aicodereviewer.git
-cd aicodereviewer
+git clone https://github.com/yourusername/microhard.git
+cd microhard
 ```
 
 ### 2. Install Dependencies
