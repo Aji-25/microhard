@@ -71,12 +71,27 @@ export default function App() {
       >
         <Button
           onClick={handleGitHubAuth}
-          className="relative group bg-gray-800/90 hover:bg-gray-700/90 backdrop-blur-sm text-white px-4 py-2 text-sm border-2 border-gray-600/50 overflow-hidden flex items-center gap-2 shadow-lg transition-all"
-          style={{ fontFamily: "'Share Tech Mono', monospace" }}
+          className="relative group bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 backdrop-blur-sm text-white px-5 py-2.5 text-sm border-2 border-blue-400/50 overflow-hidden flex items-center gap-2 shadow-xl transition-all hover:scale-105"
+          style={{ 
+            fontFamily: "'Share Tech Mono', monospace",
+            boxShadow: '0 4px 15px rgba(59, 130, 246, 0.5), 0 0 20px rgba(147, 51, 234, 0.3)'
+          }}
         >
-          <Github className="w-4 h-4" />
-          <span className="relative z-10 whitespace-nowrap">
-            {hasGitHubToken ? 'Re-auth GitHub' : 'Connect GitHub'}
+          {/* Animated glow effect */}
+          <motion.div
+            className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent"
+            animate={{
+              x: ['-100%', '200%'],
+            }}
+            transition={{
+              duration: 2,
+              repeat: Infinity,
+              repeatDelay: 1,
+            }}
+          />
+          <Github className="w-5 h-5 relative z-10" />
+          <span className="relative z-10 whitespace-nowrap font-semibold">
+            {hasGitHubToken ? 'GitHub ✓' : 'Connect GitHub'}
           </span>
         </Button>
       </motion.div>

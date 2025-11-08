@@ -124,7 +124,11 @@ export function Demo({ onErrorIntensityChange }: DemoProps) {
   const [reviewData, setReviewData] = useState<ReviewResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isFixing, setIsFixing] = useState(false);
+  const [autoReviewEnabled, setAutoReviewEnabled] = useState(true);
   const audioContextRef = useRef<AudioContext | null>(null);
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const isManualReviewRef = useRef(false);
+  const isInitialMountRef = useRef(true);
 
   // Update error intensity based on curse level
   useEffect(() => {
@@ -187,10 +191,80 @@ export function Demo({ onErrorIntensityChange }: DemoProps) {
     setSelectedLanguage(language);
     setCode(codeTemplates[language].code);
     setShowResponse(false);
+    setReviewData(null);
+    setError(null);
   };
 
-  const summonReaper = async () => {
-    if (!code.trim()) return;
+  // Debounced auto-review effect
+  useEffect(() => {
+    // Skip auto-review on initial mount (when component first loads with template code)
+    if (isInitialMountRef.current) {
+      isInitialMountRef.current = false;
+      return;
+    }
+
+    // Clear any existing timer
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+      debounceTimerRef.current = null;
+    }
+
+    // Don't auto-review if:
+    // - Auto-review is disabled
+    // - Code is empty
+    // - Currently analyzing
+    // - This is a manual review (button click)
+    if (!autoReviewEnabled || !code.trim() || isAnalyzing || isManualReviewRef.current) {
+      // Reset manual review flag after a short delay
+      if (isManualReviewRef.current) {
+        setTimeout(() => {
+          isManualReviewRef.current = false;
+        }, 100);
+      }
+      return;
+    }
+
+    // Set a timer to auto-review after user stops typing for 2.5 seconds
+    debounceTimerRef.current = setTimeout(() => {
+      // Double-check conditions before triggering review
+      if (code.trim() && !isAnalyzing && autoReviewEnabled && !isManualReviewRef.current) {
+        console.log('🔄 Auto-review triggered after 2.5s debounce');
+        // Call summonReaper with isManual=false to indicate auto-review
+        summonReaper(false);
+      }
+    }, 2500); // 2.5 second debounce
+
+    // Cleanup function
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+        debounceTimerRef.current = null;
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [code, selectedLanguage, autoReviewEnabled, isAnalyzing]);
+
+  const summonReaper = async (isManual = true) => {
+    if (!code.trim()) {
+      console.warn('⚠️ Cannot review: code is empty');
+      return;
+    }
+
+    // If already analyzing, don't start another review
+    if (isAnalyzing) {
+      console.warn('⚠️ Already analyzing, skipping duplicate request');
+      return;
+    }
+
+    // Set manual review flag to prevent auto-review from triggering
+    if (isManual) {
+      isManualReviewRef.current = true;
+      // Clear any pending auto-review
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+        debounceTimerRef.current = null;
+      }
+    }
     
     setIsAnalyzing(true);
     setShowResponse(false);
@@ -456,10 +530,14 @@ export function Demo({ onErrorIntensityChange }: DemoProps) {
                 <div className="p-4 flex-1 flex flex-col relative">
                   <Textarea
                     value={code}
-                    onChange={(e) => setCode(e.target.value)}
+                    onChange={(e) => {
+                      setCode(e.target.value);
+                      // Reset manual review flag when user types
+                      isManualReviewRef.current = false;
+                    }}
                     className="flex-1 bg-transparent border-none text-green-400 resize-none focus-visible:ring-0 focus-visible:ring-offset-0 overflow-auto"
                     style={{ fontFamily: "'Share Tech Mono', monospace" }}
-                    placeholder="Paste your cursed code here..."
+                    placeholder="Paste your cursed code here... (Auto-review after 2.5s of inactivity)"
                     spellCheck={false}
                   />
                   {/* Cursor blink effect */}
@@ -808,13 +886,13 @@ export function Demo({ onErrorIntensityChange }: DemoProps) {
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
                     >
-                      <Button
-                        id="summon-btn"
-                        onClick={summonReaper}
-                        disabled={isAnalyzing || !code.trim()}
-                        className="w-full bg-gradient-to-r from-purple-600 to-red-600 hover:from-purple-700 hover:to-red-700 border-2 border-purple-500/50 disabled:opacity-50 disabled:cursor-not-allowed relative overflow-hidden"
-                        style={{ fontFamily: "'Share Tech Mono', monospace" }}
-                      >
+                    <Button
+                      id="summon-btn"
+                      onClick={() => summonReaper(true)}
+                      disabled={isAnalyzing || !code.trim()}
+                      className="w-full bg-gradient-to-r from-purple-600 to-red-600 hover:from-purple-700 hover:to-red-700 border-2 border-purple-500/50 disabled:opacity-50 disabled:cursor-not-allowed relative overflow-hidden"
+                      style={{ fontFamily: "'Share Tech Mono', monospace" }}
+                    >
                         {/* Animated gradient on hover */}
                         <motion.div
                           className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent"
@@ -827,11 +905,29 @@ export function Demo({ onErrorIntensityChange }: DemoProps) {
                             repeatDelay: 1,
                           }}
                         />
-                        <span className="relative z-10">
-                          {isAnalyzing ? 'Summoning...' : 'Summon the Reaper'}
-                        </span>
-                      </Button>
-                    </motion.div>
+                      <span className="relative z-10">
+                        {isAnalyzing ? 'Summoning...' : 'Summon the Reaper (Manual)'}
+                      </span>
+                    </Button>
+                  </motion.div>
+
+                  {/* Auto-Review Toggle */}
+                  <div className="flex items-center justify-center gap-2 mt-2">
+                    <input
+                      type="checkbox"
+                      id="auto-review-toggle"
+                      checked={autoReviewEnabled}
+                      onChange={(e) => setAutoReviewEnabled(e.target.checked)}
+                      className="w-4 h-4 rounded border-gray-600 bg-gray-800 text-purple-600 focus:ring-purple-500"
+                    />
+                    <label
+                      htmlFor="auto-review-toggle"
+                      className="text-xs text-gray-400 cursor-pointer"
+                      style={{ fontFamily: "'Share Tech Mono', monospace" }}
+                    >
+                      Auto-review (reviews after 2.5s of inactivity)
+                    </label>
+                  </div>
 
                     {showResponse && reviewData && (reviewData.errors.length > 0 || reviewData.warnings.length > 0) && (
                       <motion.div
