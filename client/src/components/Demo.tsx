@@ -1060,28 +1060,29 @@ export function Demo({ onErrorIntensityChange }: DemoProps) {
 
       {/* PR Creation Modal */}
       <Dialog open={showPRModal} onOpenChange={setShowPRModal}>
-        <DialogContent className="bg-black/95 border-purple-500/50 text-white max-w-md">
+        <DialogContent className="bg-[#0A0A0A] border-2 border-purple-500/70 text-white max-w-md shadow-2xl">
           <DialogHeader>
-            <DialogTitle className="text-purple-400" style={{ fontFamily: "'Share Tech Mono', monospace" }}>
+            <DialogTitle className="text-purple-300 flex items-center gap-2" style={{ fontFamily: "'Share Tech Mono', monospace" }}>
+              <GitPullRequest className="w-5 h-5" />
               Create Pull Request
             </DialogTitle>
-            <DialogDescription className="text-gray-400" style={{ fontFamily: "'Share Tech Mono', monospace" }}>
+            <DialogDescription className="text-gray-300" style={{ fontFamily: "'Share Tech Mono', monospace" }}>
               Select repository and file path for your improved code
             </DialogDescription>
           </DialogHeader>
           
           <div className="space-y-4 py-4">
             <div>
-              <label className="text-sm text-gray-400 mb-2 block" style={{ fontFamily: "'Share Tech Mono', monospace" }}>
+              <label className="text-sm text-gray-300 mb-2 block font-semibold" style={{ fontFamily: "'Share Tech Mono', monospace" }}>
                 Repository
               </label>
               <Select value={selectedRepo} onValueChange={setSelectedRepo}>
-                <SelectTrigger className="bg-gray-900 border-gray-700 text-white">
+                <SelectTrigger className="bg-[#1A1A1A] border-2 border-gray-600/70 text-white hover:border-purple-500/70">
                   <SelectValue placeholder="Select repository" />
                 </SelectTrigger>
-                <SelectContent className="bg-gray-900 border-gray-700">
+                <SelectContent className="bg-[#1A1A1A] border-2 border-gray-600/70">
                   {repos.map((repo) => (
-                    <SelectItem key={repo.full_name} value={repo.full_name} className="text-white">
+                    <SelectItem key={repo.full_name} value={repo.full_name} className="text-white hover:bg-[#2A2A2A]">
                       {repo.full_name}
                     </SelectItem>
                   ))}
@@ -1090,14 +1091,14 @@ export function Demo({ onErrorIntensityChange }: DemoProps) {
             </div>
 
             <div>
-              <label className="text-sm text-gray-400 mb-2 block" style={{ fontFamily: "'Share Tech Mono', monospace" }}>
+              <label className="text-sm text-gray-300 mb-2 block font-semibold" style={{ fontFamily: "'Share Tech Mono', monospace" }}>
                 File Path (e.g., src/main.js)
               </label>
               <Input
                 value={filePath}
                 onChange={(e) => setFilePath(e.target.value)}
                 placeholder="src/main.js"
-                className="bg-gray-900 border-gray-700 text-white"
+                className="bg-[#1A1A1A] border-2 border-gray-600/70 text-white placeholder:text-gray-500 focus:border-purple-500/70"
                 style={{ fontFamily: "'Share Tech Mono', monospace" }}
               />
             </div>
@@ -1107,7 +1108,7 @@ export function Demo({ onErrorIntensityChange }: DemoProps) {
             <Button
               onClick={() => setShowPRModal(false)}
               variant="outline"
-              className="border-gray-700 text-gray-300 hover:bg-gray-800"
+              className="border-2 border-gray-600/70 text-gray-300 hover:bg-gray-800/80 hover:border-gray-500"
               style={{ fontFamily: "'Share Tech Mono', monospace" }}
             >
               Cancel
@@ -1115,7 +1116,7 @@ export function Demo({ onErrorIntensityChange }: DemoProps) {
             <Button
               onClick={handleCreatePR}
               disabled={!selectedRepo || !filePath || isCreatingPR}
-              className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+              className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 border-2 border-purple-500/50 shadow-lg"
               style={{ fontFamily: "'Share Tech Mono', monospace" }}
             >
               {isCreatingPR ? 'Creating...' : 'Create PR'}
